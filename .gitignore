@@ -1,3 +1,8 @@
 venv/
 .vscode/
 fitbit_sync.code-workspace
+config2.yml
+fitbit.log
+__pycache__/
+config/refreshtoken
+config/config.yml
