@@ -1,6 +1,9 @@
-import sys
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from sys import exit
+from time import time
 
+import pytz
 import requests
 import yaml
 
@@ -8,14 +11,16 @@ import logger
 
 logfile=Path('config', 'fitbit.log')
 log = logger.setup_applevel_logger(file_name=logfile)
+# ajutine
+LOCAL_TIMEZONE = pytz.timezone('Asia/Calcutta')
 
 class FitBit():
     def __init__(self):
         self.log = logger.get_logger(self.__class__.__name__)
-        self.log.debug('Starting sync')
         self.cfg = self._load_conf()
         self.token = self._get_token()
-        datapoints=[]
+        self.datapoints = []
+        self.flow = []
 
     def _load_conf(self):
         conffile=Path('config', 'config.yml')
@@ -25,7 +30,7 @@ class FitBit():
         else:
             cfg={
                 'fitbit':{
-                    'language' : '',
+                    'language' : 'en_US',
                     'client_id' : '',
                     'client_secret' : '',
                     'initial_code' : '',
@@ -40,7 +45,7 @@ class FitBit():
             with open(conffile, 'w+') as ymlfile:
                 yaml.dump(cfg, ymlfile)
             self.log.error(f'Please fill all fields in {conffile.name}')
-            sys.exit(1)
+            exit(1)
         return cfg
     
     def _get_token(self):
@@ -69,10 +74,7 @@ class FitBit():
 
         except requests.exceptions.HTTPError as err:
             self.log.error(f'HTTP request failed: {err}')
-            # print(response.request.url)
-            # print(response.request.body)
-            # print(response.request.headers)
-            sys.exit(1)
+            exit(1)
 
         json = response.json()
         newtoken = json['access_token']
@@ -81,15 +83,49 @@ class FitBit():
             tf.write(refreshtoken)
         
         return newtoken
+    
+    def _fetch_data(self, category, type, date):
+        try:
+            response = requests.get('https://api.fitbit.com/1/user/-/' + category + '/' + type + '/date/'+date+'/1d.json', 
+                headers={'Authorization': 'Bearer ' + self.token, 'Accept-Language': self.cfg['fitbit']['language']})
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.error(f'HTTP request for {category}/{type} failed: {err}')
+        else:
+            data = response.json()
+            self.log.debug(f'Got {category}/{type}')
+            
+            for day in data[category.replace('/', '-') + '-' + type]:
+                self.datapoints.append({
+                        "measurement": type,
+                        "time": LOCAL_TIMEZONE.localize(datetime.fromisoformat(day['dateTime'])).astimezone(pytz.utc).isoformat(),
+                        "fields": {
+                            "value": float(day['value'])
+                        }
+                    })
+    
+    def add(self, category, type, date):
+        self.flow.append({'category' : category, 'type' : type, 'date' : date})
 
-
+    def sync(self):
+        self.log.debug('Starting sync')
+        start = time()
+        for q in self.flow:
+            self._fetch_data(q['category'], q['type'], q['date'])
+        end = time()
+        self.log.debug(f'Syncing was successful, took {end - start} seconds')
 
 if __name__ == '__main__':
     #juhend api registreerimiseks jne
+    today = (date.today()).isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
     fb=FitBit()
-    print(fb.token)
-    # for section in fb.cfg:
-    #     print(section)
-    # print(fb.cfg['fitbit'])
-    # print(fb.cfg['influxdb'])
-    # print(fb.cfg['influxdb']['host'])
+    activities = ['steps', 'distance', 'floors', 'elevation', 'minutesSedentary', 'minutesLightlyActive', 'minutesFairlyActive', 'minutesVeryActive', 'calories', 'activityCalories']
+    for a in activities:
+        fb.add('activities', a, yesterday)
+    body = ['weight', 'fat', 'bmi']
+    for b in body:
+        fb.add('activities', b, yesterday)
+    fb.sync()
+    print(fb.datapoints)
+
