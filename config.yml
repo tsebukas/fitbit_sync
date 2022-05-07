@@ -1,0 +1,23 @@
+fitbit:
+  language: 'en_US'
+  client_id: 'id' 
+  client_secret: 'secret'
+  access_token: 'token'
+  initial_code: 'code'
+influxdb:
+  host: 192.168.8.2
+  port: 8086
+  access_token: 'token'
+
+# LOCAL_TIMEZONE = pytz.timezone('Asia/Calcutta')
+# FITBIT_LANGUAGE = 'en_US'
+# FITBIT_CLIENT_ID = ''
+# FITBIT_CLIENT_SECRET = ''
+# FITBIT_ACCESS_TOKEN = ''
+# FITBIT_INITIAL_CODE = ''
+# REDIRECT_URI = 'http://localhost/8080'
+# INFLUXDB_HOST = 'localhost'
+# INFLUXDB_PORT = 8086
+# INFLUXDB_USERNAME = 'database_username'
+# INFLUXDB_PASSWORD = 'database_password'
+# INFLUXDB_DATABASE = 'fitbit'
