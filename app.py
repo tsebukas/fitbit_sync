@@ -6,6 +6,8 @@ from time import time
 import pytz
 import requests
 import yaml
+from influxdb import InfluxDBClient
+from influxdb.exceptions import InfluxDBClientError
 
 import logger
 
@@ -14,14 +16,11 @@ log = logger.setup_applevel_logger(file_name=logfile)
 # ajutine
 LOCAL_TIMEZONE = pytz.timezone('Asia/Calcutta')
 
-class FitBit():
+class Configuration():
     def __init__(self):
         self.log = logger.get_logger(self.__class__.__name__)
         self.cfg = self._load_conf()
-        self.token = self._get_token()
-        self.datapoints = []
-        self.flow = []
-
+    
     def _load_conf(self):
         conffile=Path('config', 'config.yml')
         if conffile.is_file():
@@ -39,7 +38,9 @@ class FitBit():
                 'influxdb':{
                     'host' : '',
                     'port' : '',
-                    'access_token' : ''
+                    'access_token' : '',
+                    'org' : '',
+                    'bucket' : ''
                     }
             }
             with open(conffile, 'w+') as ymlfile:
@@ -47,7 +48,15 @@ class FitBit():
             self.log.error(f'Please fill all fields in {conffile.name}')
             exit(1)
         return cfg
-    
+
+class FitBit():
+    def __init__(self, conf):
+        self.log = logger.get_logger(self.__class__.__name__)
+        self.cfg = conf
+        self.token = self._get_token()
+        self.flow = []
+        self.datapoints = []
+
     def _get_token(self):
         tokenfile = Path('config', 'refreshtoken')
         try:
@@ -56,19 +65,19 @@ class FitBit():
                     refreshtoken = tf.read()
                 response = requests.post('https://api.fitbit.com/oauth2/token',
                 data={
-                    'client_id': self.cfg['fitbit']['client_id'],
+                    'client_id': self.cfg['client_id'],
                     'grant_type': 'refresh_token',
-                    'redirect_uri': self.cfg['fitbit']['redirect_uri'],
+                    'redirect_uri': self.cfg['redirect_uri'],
                     'refresh_token': refreshtoken
-                }, auth=(self.cfg['fitbit']['client_id'], self.cfg['fitbit']['client_secret']))
+                }, auth=(self.cfg['client_id'], self.cfg['client_secret']))
             else:
                 response = requests.post('https://api.fitbit.com/oauth2/token',
                 data={
-                    'client_id': self.cfg['fitbit']['client_id'],
+                    'client_id': self.cfg['client_id'],
                     'grant_type': 'authorization_code',
-                    'redirect_uri': self.cfg['fitbit']['redirect_uri'],
-                    'code': self.cfg['fitbit']['initial_code']
-                }, auth=(self.cfg['fitbit']['client_id'], self.cfg['fitbit']['client_secret']))
+                    'redirect_uri': self.cfg['redirect_uri'],
+                    'code': self.cfg['initial_code']
+                }, auth=(self.cfg['client_id'], self.cfg['client_secret']))
         
             response.raise_for_status()
 
@@ -87,13 +96,14 @@ class FitBit():
     def _fetch_data(self, category, type, date):
         try:
             response = requests.get('https://api.fitbit.com/1/user/-/' + category + '/' + type + '/date/'+date+'/1d.json', 
-                headers={'Authorization': 'Bearer ' + self.token, 'Accept-Language': self.cfg['fitbit']['language']})
+                headers={'Authorization': 'Bearer ' + self.token, 'Accept-Language': self.cfg['language']})
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             self.log.error(f'HTTP request for {category}/{type} failed: {err}')
         else:
             data = response.json()
-            self.log.debug(f'Got {category}/{type}')
+            value = data[category+'-'+type][0]['value']
+            self.log.debug(f'Got {category}/{type}- {value}')
             
             for day in data[category.replace('/', '-') + '-' + type]:
                 self.datapoints.append({
@@ -114,18 +124,23 @@ class FitBit():
             self._fetch_data(q['category'], q['type'], q['date'])
         end = time()
         self.log.debug(f'Syncing was successful, took {end - start} seconds')
+    
+    class InfluxDB():
+        def _savebucket(self):
+
+            idb=InfluxDBClient(host = self.cfg['influxdb']['host'], port = self.cfg['influxdb']['port'], org = self.cfg['influxdb']['org'])
+            with idb as client:
+                write_data
 
 if __name__ == '__main__':
     #juhend api registreerimiseks jne
     today = (date.today()).isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
-    fb=FitBit()
-    activities = ['steps', 'distance', 'floors', 'elevation', 'minutesSedentary', 'minutesLightlyActive', 'minutesFairlyActive', 'minutesVeryActive', 'calories', 'activityCalories']
-    for a in activities:
-        fb.add('activities', a, yesterday)
-    body = ['weight', 'fat', 'bmi']
-    for b in body:
-        fb.add('activities', b, yesterday)
+    cfg=Configuration().cfg
+    fb=FitBit(cfg['fitbit'])
+    for category, types in cfg['fitbit']['endpoints'].items():
+        for type in types:
+            fb.add(category, type, yesterday)
     fb.sync()
     print(fb.datapoints)
 
