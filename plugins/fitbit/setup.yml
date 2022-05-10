@@ -1,0 +1,31 @@
+fitbit:
+  endpoints:
+    activities:
+      - steps
+      - distance
+      - floors
+      - elevation
+      - minutesSedentary
+      - minutesLightlyActive
+      - minutesFairlyActive
+      - minutesVeryActive
+      - calories
+      - activityCalories
+      - distance
+      - floors
+      - elevation
+      - minutesSedentary
+      - minutesLightlyActive
+      - minutesFairlyActive
+      - minutesVeryActive
+      - calories
+      - activityCalories
+    body:
+      - weight
+      - fat
+      - bmi
+  conf_needed:
+    - client_id
+    - client_secret
+    - initial_code
+    - redirect_uri

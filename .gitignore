@@ -6,3 +6,8 @@ fitbit.log
 __pycache__/
 config/refreshtoken
 config/config.yml
+test.py
+_test.py
+app2.py
+config/config copy.yml
+config/fitbit_refreshtoken
