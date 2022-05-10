@@ -68,3 +68,6 @@ class Configuration():
             self.log.error(f'Please fill all fields in {self.file.name}')
             exit(1)
         return cfg
+
+
+

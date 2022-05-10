@@ -83,17 +83,18 @@ class FitBit(plugins.PlugIns):
         
         return newtoken
     
-    def _fetch_data(self, category, type, date):
+    def _fetch_data(self, category, type, day):
         local_timezone = pytz.timezone(self.cfg.yaml['common']['timezone'])
         language = self.cfg.yaml['common']['language']
         try:
-            response = requests.get(f'https://api.fitbit.com/1/user/-/{category}/{type}/date/{date}/1d.json', 
+            response = requests.get(f'https://api.fitbit.com/1/user/-/{category}/{type}/date/{day}/1d.json', 
                 headers={'Authorization': 'Bearer ' + self.token, 'Accept-Language': language})
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             self.log.error(f'HTTP request for {category}/{type} failed: {err}')
         else:
             data = response.json()
+            # print(data)
             value = data[category+'-'+type][0]['value']
             self.log.debug(f'Got {category}/{type}- {value}')
             
@@ -107,13 +108,13 @@ class FitBit(plugins.PlugIns):
                         }
                     })
     
-    def run(self, date):
+    def run(self, day):
         self.setup = self._load_setup()
         self._setup()
         
         self.log.debug('Starting sync')
         start = time()
         for q in self.flow:
-            self._fetch_data(q['category'], q['type'], date)
+            self._fetch_data(q['category'], q['type'], day)
         end = time()
         self.log.debug(f'Syncing was successful, took {end - start} seconds')
