@@ -22,14 +22,18 @@ class WorkFlow():
                 self._add(plugin)
 
     def run(self, day):
+        self.log.debug('Extracting...')
         for plugin in self.flow:
             if plugin.type=='extract':
                 plugin.run(day)
                 self.datapoints.append(plugin.datapoints)
+        self.log.debug('Extracting finished')
 
+        self.log.debug('Loading...')
         for plugin in self.flow:
             if plugin.type=='load':
                 plugin.run(self.datapoints)
+        self.log.debug('Loading finished')
 
 class PlugIns:
     """Basic resource class. Concrete resources will inherit from this one

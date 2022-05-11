@@ -1,0 +1,7 @@
+influxdb:
+  conf_needed:
+    - host
+    - port
+    - access_token
+    - org
+    - bucket

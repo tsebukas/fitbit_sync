@@ -1,5 +1,4 @@
 from datetime import datetime
-from distutils.command.config import config
 from pathlib import Path
 from sys import exit
 from time import time
@@ -112,9 +111,9 @@ class FitBit(plugins.PlugIns):
         self.setup = self._load_setup()
         self._setup()
         
-        self.log.debug('Starting sync')
+        self.log.debug('Starting FitBit sync')
         start = time()
         for q in self.flow:
             self._fetch_data(q['category'], q['type'], day)
         end = time()
-        self.log.debug(f'Syncing was successful, took {end - start} seconds')
+        self.log.debug(f'FitBit syncing was successful, took {end - start} seconds')
